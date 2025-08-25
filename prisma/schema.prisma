@@ -1,0 +1,670 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User and Authentication Models
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  name          String?
+  avatar        String?
+  password      String?
+  role          UserRole @default(CANDIDATE)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  workspaceId   String?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
+  
+  candidate     Candidate?
+  recruiter     Recruiter?
+  admin         Admin?
+  
+  accounts      Account[]
+  sessions      Session[]
+  chatSessions  ChatSession[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  RECRUITER
+  CANDIDATE
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+// Workspace/Tenant Model
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String
+  domain      String?
+  settings    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  users       User[]
+  jobs        Job[]
+  projects    Project[]
+  analytics   Analytics[]
+  
+  @@map("workspaces")
+}
+
+// NextAuth.js Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Candidate Profile Model
+model Candidate {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Personal Info
+  fullName            String?
+  phone               String?
+  address             String?
+  dateOfBirth         DateTime?
+  gender              Gender?
+  maritalStatus       String?
+  languages           String?  // JSON array
+  
+  // Professional Info
+  totalExperience     Float?   // in years
+  currentRole         String?
+  expectedRole        String?
+  currentCTC          Float?   // in LPA
+  expectedCTC         Float?   // in LPA
+  noticePeriod        Float?   // in days
+  skills              String?  // JSON array
+  certifications      String?  // JSON array
+  education           String?  // JSON array
+  workHistory         String?  // JSON array of work experiences
+  
+  // Preferences
+  preferredLocations  String?  // JSON array
+  preferredIndustries String?  // JSON array
+  jobType             JobType?
+  workType            WorkType? // Gov/Pvt/Gov&Pvt
+  readyToRelocate     Boolean  @default(false)
+  lookingAbroad       Boolean  @default(false)
+  sectorType          SectorType?
+  reservationCategory String?
+  
+  // Additional Info
+  hobbies             String?  // JSON array
+  bio                 String?
+  hasCurrentOffers    Boolean  @default(false)
+  bestTimeToContact   String?
+  preferredContact    ContactMode?
+  
+  // Resume
+  resumePath          String?
+  resumeParsedData    String?  // JSON
+  profileCompleteness Int      @default(0)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  applications        Application[]
+  savedJobs           SavedJob[]
+  chatSessions        ChatSession[]
+  projectCandidates   ProjectCandidate[]
+  actionQueue         ActionQueue[]
+  
+  @@map("candidates")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  REMOTE
+  HYBRID
+  INTERNSHIP
+}
+
+enum WorkType {
+  GOVERNMENT
+  PRIVATE
+  GOV_PVT
+}
+
+enum SectorType {
+  GOVERNMENT
+  PRIVATE
+  BOTH
+}
+
+enum ContactMode {
+  CALL
+  WHATSAPP
+  EMAIL
+}
+
+// Recruiter Profile Model
+model Recruiter {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  companyName   String?
+  companyEmail  String?
+  department    String?
+  designation   String?
+  location      String?
+  bio           String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  jobs          Job[]
+  projects      Project[]
+  actionQueue   ActionQueue[]
+  
+  @@map("recruiters")
+}
+
+// Admin Profile Model
+model Admin {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  permissions String? // JSON array of permissions
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("admins")
+}
+
+// Job Model
+model Job {
+  id                  String      @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recruiterId         String?
+  recruiter           Recruiter?  @relation(fields: [recruiterId], references: [id])
+  
+  title               String
+  companyName         String
+  description         String?
+  shortDescription    String?
+  
+  // Job Details
+  locations           String?     // JSON array
+  skills              String?     // JSON array
+  experienceMin       Float?
+  experienceMax       Float?
+  salaryMin           Float?
+  salaryMax           Float?
+  currency            String      @default("INR")
+  employmentType      JobType?
+  noticePeriod        String?
+  workMode            WorkMode?   // Remote/Onsite/Hybrid
+  deadline            DateTime?
+  
+  // Status and Metadata
+  status              JobStatus   @default(DRAFT)
+  source              JobSource   @default(INTERNAL)
+  externalJobId       String?     // For external jobs
+  applyUrl            String?     // External apply URL
+  canonicalUrl        String?     // Original source URL
+  
+  // Structured Data for SEO
+  structuredData      String?     // JSON-LD
+  
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  
+  // Relations
+  customQuestions     CustomQuestion[]
+  applications        Application[]
+  projects            Project[]
+  savedJobs           SavedJob[]
+  
+  @@map("jobs")
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  CLOSED
+  ON_HOLD
+}
+
+enum JobSource {
+  INTERNAL
+  GOOGLE
+  LINKEDIN
+  COMPANY_SITE
+  AGGREGATOR
+}
+
+enum WorkMode {
+  REMOTE
+  ONSITE
+  HYBRID
+}
+
+// Custom Questions for Jobs
+model CustomQuestion {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  question    String
+  type        QuestionType
+  options     String?  // JSON array for dropdown/multiple choice
+  isMandatory Boolean  @default(false)
+  order       Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("custom_questions")
+}
+
+enum QuestionType {
+  TEXT
+  TEXTAREA
+  DROPDOWN
+  MULTIPLE_CHOICE
+  CHECKBOX
+  YES_NO
+  NUMBER
+  DATE
+}
+
+// Application Model
+model Application {
+  id            String           @id @default(cuid())
+  jobId         String
+  job           Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidateId   String
+  candidate     Candidate        @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  // Application Data
+  answers       String?          // JSON of custom question answers
+  coverLetter   String?
+  resumePath    String?
+  status        ApplicationStatus @default(APPLIED)
+  
+  // Candidate Info at time of application
+  candidateInfo String?          // JSON snapshot of candidate info
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  @@unique([jobId, candidateId])
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  APPLIED
+  VIEWED
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  OFFERED
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+// Saved Jobs Model
+model SavedJob {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([jobId, candidateId])
+  @@map("saved_jobs")
+}
+
+// Project Model (for Recruiter's client projects)
+model Project {
+  id            String       @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recruiterId   String
+  recruiter     Recruiter    @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  
+  title         String
+  clientName    String
+  spocName      String?      // Single Point of Contact
+  spocEmail     String?
+  spocPhone     String?
+  
+  // Project Details
+  description   String?
+  status        ProjectStatus @default(WIP)
+  remarks       String?
+  
+  // Non-negotiable criteria (Star System)
+  criteria      String?      // JSON array of criteria with star status
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  jobs          Job[]
+  projectCandidates ProjectCandidate[]
+  actionQueue   ActionQueue[]
+  
+  @@map("projects")
+}
+
+enum ProjectStatus {
+  WIP
+  HOLD
+  CLOSED
+  WIN
+  PARTIAL_WIN
+  LOST
+}
+
+// Project-Candidate Association
+model ProjectCandidate {
+  id            String              @id @default(cuid())
+  projectId     String
+  project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  candidateId   String
+  candidate     Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  // Matching and Status
+  matchScore    Float?
+  status        CandidateStatus     @default(NEW)
+  followUpDate  DateTime?
+  remarks       String?
+  
+  // Recruiter actions
+  isShortlisted Boolean             @default(false)
+  isSubmitted   Boolean             @default(false)
+  submittedAt   DateTime?
+  
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  
+  @@unique([projectId, candidateId])
+  @@map("project_candidates")
+}
+
+enum CandidateStatus {
+  NEW
+  CONTACTED
+  REPLIED
+  AWAITING_REPLY
+  LIVE_CHAT
+  INTERVENTION_NEEDED
+  COMPLETED
+  DECLINED
+}
+
+// AI Provider Configuration
+model AIProvider {
+  id            String           @id @default(cuid())
+  name          String           @unique
+  type          ProviderType
+  endpoint      String
+  apiKey        String?
+  model         String?
+  isActive      Boolean          @default(true)
+  
+  // Configuration
+  config        String?          // JSON configuration
+  weight        Float            @default(1.0)
+  maxTokens     Int?
+  maxRequests   Int?
+  maxCost       Float?
+  
+  // Rate limiting
+  requestsPerMinute Int?
+  tokensPerMinute   Int?
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  // Relations
+  providerMetrics ProviderMetric[]
+  
+  @@map("ai_providers")
+}
+
+enum ProviderType {
+  LLM
+  SERP
+  PARSING
+  EMBEDDING
+}
+
+// Provider Metrics
+model ProviderMetric {
+  id            String   @id @default(cuid())
+  providerId    String
+  provider      AIProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  
+  // Usage Metrics
+  requestCount  Int      @default(0)
+  tokenCount    Int      @default(0)
+  successCount  Int      @default(0)
+  failureCount  Int      @default(0)
+  
+  // Performance Metrics
+  avgLatency    Float?
+  totalCost     Float    @default(0)
+  
+  // Time period
+  date          DateTime @default(now())
+  
+  @@unique([providerId, date])
+  @@map("provider_metrics")
+}
+
+// Chat System Models
+model ChatSession {
+  id            String       @id @default(cuid())
+  candidateId   String?
+  candidate     Candidate?   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  sessionType   ChatSessionType
+  platform      ChatPlatform
+  status        ChatStatus   @default(ACTIVE)
+  
+  // Context
+  context       String?      // JSON context data
+  metadata      String?      // JSON metadata
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  messages      ChatMessage[]
+  
+  @@map("chat_sessions")
+}
+
+enum ChatSessionType {
+  CANDIDATE_REGISTRATION
+  JOB_SEARCH
+  APPLICATION
+  HR_POSTING
+  CANDIDATE_SEARCH
+  GENERAL
+}
+
+enum ChatPlatform {
+  WEB
+  TELEGRAM
+  WHATSAPP
+}
+
+enum ChatStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+  ERROR
+}
+
+model ChatMessage {
+  id            String       @id @default(cuid())
+  sessionId     String
+  session       ChatSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  messageType   MessageType
+  content       String
+  metadata      String?      // JSON metadata
+  
+  createdAt     DateTime     @default(now())
+  
+  @@map("chat_messages")
+}
+
+enum MessageType {
+  USER
+  BOT
+  SYSTEM
+  INTERVENTION
+}
+
+// Action Queue for Recruiter Workspace
+model ActionQueue {
+  id            String           @id @default(cuid())
+  recruiterId   String
+  recruiter     Recruiter        @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  candidateId   String?
+  candidate     Candidate?       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  type          ActionType
+  title         String
+  description   String?
+  metadata      String?          // JSON metadata
+  
+  priority      ActionPriority   @default(MEDIUM)
+  status        ActionStatus     @default(PENDING)
+  dueDate       DateTime?
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  completedAt   DateTime?
+  
+  @@map("action_queue")
+}
+
+enum ActionType {
+  NEW_MATCHES
+  CHAT_FOLLOW_UP
+  NO_RESPONSE
+  PARSE_FAILURE
+  CHAT_INTERVENTION
+  MANUAL_REVIEW
+  DUPLICATE_CHECK
+}
+
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+// Analytics and Audit Logs
+model Analytics {
+  id            String   @id @default(cuid())
+  workspaceId   String?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
+  
+  eventType     String
+  eventData     String?  // JSON event data
+  userId        String?
+  userRole      UserRole?
+  metadata      String?  // JSON metadata
+  
+  ipAddress     String?
+  userAgent     String?
+  
+  createdAt     DateTime @default(now())
+  
+  @@map("analytics")
+}
