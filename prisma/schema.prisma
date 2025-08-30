@@ -132,13 +132,11 @@ model Candidate {
   currentCTC          Float?   // in LPA
   expectedCTC         Float?   // in LPA
   noticePeriod        Float?   // in days
-  skills              String?  // JSON array
   certifications      String?  // JSON array
   education           String?  // JSON array
   workHistory         String?  // JSON array of work experiences
   
   // Preferences
-  preferredLocations  String?  // JSON array
   preferredIndustries String?  // JSON array
   jobType             JobType?
   workType            WorkType? // Gov/Pvt/Gov&Pvt
@@ -168,6 +166,8 @@ model Candidate {
   chatSessions        ChatSession[]
   projectCandidates   ProjectCandidate[]
   actionQueue         ActionQueue[]
+  skills              SkillOnCandidate[]
+  locations           LocationOnCandidate[]
   
   @@map("candidates")
 }
@@ -258,8 +258,6 @@ model Job {
   shortDescription    String?
   
   // Job Details
-  locations           String?     // JSON array
-  skills              String?     // JSON array
   experienceMin       Float?
   experienceMax       Float?
   salaryMin           Float?
@@ -288,6 +286,8 @@ model Job {
   applications        Application[]
   projects            Project[]
   savedJobs           SavedJob[]
+  skills              SkillOnJob[]
+  locations           LocationOnJob[]
   
   @@map("jobs")
 }
@@ -667,4 +667,63 @@ model Analytics {
   createdAt     DateTime @default(now())
   
   @@map("analytics")
+}
+
+// Skill and Location Models
+model Skill {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  
+  // Relations
+  jobs        SkillOnJob[]
+  candidates  SkillOnCandidate[]
+  
+  @@map("skills")
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  
+  // Relations
+  jobs        LocationOnJob[]
+  candidates  LocationOnCandidate[]
+  
+  @@map("locations")
+}
+
+model SkillOnJob {
+  jobId   String
+  job     Job    @relation(fields: [jobId], references: [id])
+  skillId String
+  skill   Skill  @relation(fields: [skillId], references: [id])
+  
+  @@id([jobId, skillId])
+}
+
+model LocationOnJob {
+  jobId      String
+  job        Job      @relation(fields: [jobId], references: [id])
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+  
+  @@id([jobId, locationId])
+}
+
+model SkillOnCandidate {
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  skillId     String
+  skill       Skill     @relation(fields: [skillId], references: [id])
+  
+  @@id([candidateId, skillId])
+}
+
+model LocationOnCandidate {
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  locationId  String
+  location    Location  @relation(fields: [locationId], references: [id])
+  
+  @@id([candidateId, locationId])
 }

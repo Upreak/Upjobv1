@@ -21,7 +21,7 @@ import {
   DollarSign,
   Clock
 } from "lucide-react"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@/types/enums"
 
 interface CandidateProfile {
   fullName?: string

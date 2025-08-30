@@ -23,7 +23,7 @@ import {
   Calendar,
   Building
 } from "lucide-react"
-import { UserRole, JobType, WorkMode, JobStatus } from "@prisma/client"
+import { UserRole, JobType, WorkMode, JobStatus } from "@/types/enums"
 import { toast } from "sonner"
 
 interface JobFormData {

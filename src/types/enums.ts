@@ -1,0 +1,111 @@
+export enum UserRole {
+  CANDIDATE = "CANDIDATE",
+  RECRUITER = "RECRUITER",
+  ADMIN = "ADMIN",
+  SUPER_ADMIN = "SUPER_ADMIN",
+}
+
+export enum ProviderType {
+  LLM = "LLM",
+  SERP = "SERP",
+  PARSING = "PARSING",
+  EMBEDDING = "EMBEDDING",
+}
+
+export enum ApplicationStatus {
+  APPLIED = "APPLIED",
+  VIEWED = "VIEWED",
+  SHORTLISTED = "SHORTLISTED",
+  INTERVIEW_SCHEDULED = "INTERVIEW_SCHEDULED",
+  OFFERED = "OFFERED",
+  HIRED = "HIRED",
+  REJECTED = "REJECTED",
+  WITHDRAWN = "WITHDRAWN",
+}
+
+export enum JobStatus {
+  DRAFT = "DRAFT",
+  ACTIVE = "ACTIVE",
+  EXPIRED = "EXPIRED",
+  CLOSED = "CLOSED",
+  ON_HOLD = "ON_HOLD",
+}
+
+export enum ChatSessionType {
+  CANDIDATE_REGISTRATION = "CANDIDATE_REGISTRATION",
+  JOB_SEARCH = "JOB_SEARCH",
+  APPLICATION = "APPLICATION",
+  HR_POSTING = "HR_POSTING",
+  CANDIDATE_SEARCH = "CANDIDATE_SEARCH",
+  GENERAL = "GENERAL",
+}
+
+export enum ChatPlatform {
+  WEB = "WEB",
+  TELEGRAM = "TELEGRAM",
+  WHATSAPP = "WHATSAPP",
+}
+
+export enum MessageType {
+  USER = "USER",
+  BOT = "BOT",
+  SYSTEM = "SYSTEM",
+  INTERVENTION = "INTERVENTION",
+}
+
+export enum ActionStatus {
+  PENDING = "PENDING",
+  IN_PROGRESS = "IN_PROGRESS",
+  COMPLETED = "COMPLETED",
+  SKIPPED = "SKIPPED",
+}
+
+export enum ActionType {
+  NEW_MATCHES = "NEW_MATCHES",
+  CHAT_FOLLOW_UP = "CHAT_FOLLOW_UP",
+  NO_RESPONSE = "NO_RESPONSE",
+  PARSE_FAILURE = "PARSE_FAILURE",
+  CHAT_INTERVENTION = "CHAT_INTERVENTION",
+  MANUAL_REVIEW = "MANUAL_REVIEW",
+  DUPLICATE_CHECK = "DUPLICATE_CHECK",
+}
+
+export enum JobType {
+  FULL_TIME = "FULL_TIME",
+  PART_TIME = "PART_TIME",
+  CONTRACT = "CONTRACT",
+  REMOTE = "REMOTE",
+  HYBRID = "HYBRID",
+  INTERNSHIP = "INTERNSHIP",
+}
+
+export enum WorkType {
+  GOVERNMENT = "GOVERNMENT",
+  PRIVATE = "PRIVATE",
+  GOV_PVT = "GOV_PVT",
+}
+
+export enum SectorType {
+  GOVERNMENT = "GOVERNMENT",
+  PRIVATE = "PRIVATE",
+  BOTH = "BOTH",
+}
+
+export enum Gender {
+  MALE = "MALE",
+  FEMALE = "FEMALE",
+  OTHER = "OTHER",
+  PREFER_NOT_TO_SAY = "PREFER_NOT_TO_SAY",
+}
+
+export enum ContactMode {
+  CALL = "CALL",
+  WHATSAPP = "WHATSAPP",
+  EMAIL = "EMAIL",
+}
+
+export enum WorkMode {
+    REMOTE = "REMOTE",
+    ONSITE = "ONSITE",
+    HYBRID = "HYBRID",
+}

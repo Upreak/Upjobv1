@@ -23,7 +23,7 @@ import {
   CheckCircle,
   AlertCircle
 } from "lucide-react"
-import { UserRole, ApplicationStatus } from "@prisma/client"
+import { UserRole, ApplicationStatus } from "@/types/enums"
 import { toast } from "sonner"
 
 interface Job {

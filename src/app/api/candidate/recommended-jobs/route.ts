@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { UserRole, JobStatus } from "@prisma/client"
+import { UserRole, JobStatus } from "@/types/enums"
 
 // GET /api/candidate/recommended-jobs - Get recommended jobs for candidate
 export async function GET(request: NextRequest) {

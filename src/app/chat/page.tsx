@@ -20,7 +20,7 @@ import {
   FileText,
   Settings
 } from "lucide-react"
-import { UserRole, ChatSessionType, ChatPlatform } from "@prisma/client"
+import { UserRole, ChatSessionType, ChatPlatform } from "@/types/enums"
 import { toast } from "sonner"
 
 interface ChatMessage {

@@ -24,7 +24,7 @@ import {
   Target,
   Zap
 } from "lucide-react"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@/types/enums"
 import { toast } from "sonner"
 
 interface ActionQueueItem {

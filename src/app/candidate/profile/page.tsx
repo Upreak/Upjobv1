@@ -23,7 +23,7 @@ import {
   Plus,
   X
 } from "lucide-react"
-import { UserRole, JobType, WorkType, SectorType, Gender, ContactMode } from "@prisma/client"
+import { UserRole, JobType, WorkType, SectorType, Gender, ContactMode } from "@/types/enums"
 import { toast } from "sonner"
 
 interface CandidateProfile {

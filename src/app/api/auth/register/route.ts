@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@/types/enums"
 import { hashPassword, generatePassword } from "@/lib/auth"
 import { z } from "zod"
 

@@ -26,7 +26,7 @@ import {
   DollarSign,
   Clock
 } from "lucide-react"
-import { UserRole, ProviderType } from "@prisma/client"
+import { UserRole, ProviderType } from "@/types/enums"
 import { toast } from "sonner"
 
 interface AIProvider {

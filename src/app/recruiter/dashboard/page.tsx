@@ -23,7 +23,7 @@ import {
   AlertCircle,
   FileText
 } from "lucide-react"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@/types/enums"
 
 interface RecruiterProfile {
   companyName?: string

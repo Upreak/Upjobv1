@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { UserRole, ChatSessionType, ChatPlatform, MessageType } from "@prisma/client"
+import { UserRole, ChatSessionType, ChatPlatform, MessageType } from "@/types/enums"
 import ZAI from "z-ai-web-dev-sdk"
 
 export async function POST(request: NextRequest) {

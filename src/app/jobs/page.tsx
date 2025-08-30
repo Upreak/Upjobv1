@@ -21,7 +21,7 @@ import {
   ExternalLink,
   Calendar
 } from "lucide-react"
-import { UserRole, JobType, WorkMode } from "@prisma/client"
+import { UserRole, JobType, WorkMode } from "@/types/enums"
 import { toast } from "sonner"
 
 interface Job {

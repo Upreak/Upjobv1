@@ -19,7 +19,7 @@ import {
   Briefcase
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { UserRole } from "@prisma/client"
+import { UserRole } from "@/types/enums"
 import { toast } from "sonner"
 
 export default function RecruiterProfile() {
