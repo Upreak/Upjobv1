@@ -1,178 +1,124 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
   Search, 
   MapPin, 
   DollarSign, 
-  Clock,
+  Calendar,
   Briefcase,
   Filter,
-  SortAsc,
-  Bookmark,
   ExternalLink,
-  Calendar
+  Heart,
+  Share2,
+  Clock
 } from "lucide-react"
-import { UserRole, JobType, WorkMode } from "@/types/enums"
-import { toast } from "sonner"
+import Link from "next/link"
 
 interface Job {
   id: string
   title: string
-  companyName: string
+  company: string
   description: string
-  shortDescription?: string
-  locations: string[]
-  skills: string[]
-  experienceMin?: number
-  experienceMax?: number
-  salaryMin?: number
-  salaryMax?: number
+  location: string[]
+  remote: boolean
+  minSalary?: number
+  maxSalary?: number
   currency: string
-  employmentType: JobType
-  workMode: WorkMode
-  deadline?: string
-  status: string
+  employmentType: string
+  minExperience?: number
+  maxExperience?: number
+  skills: string[]
   createdAt: string
-  applicationCount?: number
-  isSaved?: boolean
+  source: string
+  applyUrl: string
 }
-
-interface SearchFilters {
-  query: string
-  location: string
-  jobType: string
-  workMode: string
-  experienceMin: string
-  salaryMin: string
-  sortBy: string
-}
-
-const jobTypes = [
-  { value: "all", label: "All Types" },
-  { value: JobType.FULL_TIME, label: "Full Time" },
-  { value: JobType.PART_TIME, label: "Part Time" },
-  { value: JobType.CONTRACT, label: "Contract" },
-  { value: JobType.REMOTE, label: "Remote" },
-  { value: JobType.HYBRID, label: "Hybrid" },
-  { value: JobType.INTERNSHIP, label: "Internship" }
-]
-
-const workModes = [
-  { value: "all", label: "All Modes" },
-  { value: WorkMode.REMOTE, label: "Remote" },
-  { value: WorkMode.ONSITE, label: "On-site" },
-  { value: WorkMode.HYBRID, label: "Hybrid" }
-]
-
-const experienceLevels = [
-  { value: "all", label: "All Levels" },
-  { value: "0", label: "Entry Level (0-2 years)" },
-  { value: "2", label: "Mid Level (2-5 years)" },
-  { value: "5", label: "Senior Level (5+ years)" }
-]
-
-const salaryRanges = [
-  { value: "all", label: "All Salaries" },
-  { value: "0", label: "Under $50k" },
-  { value: "50000", label: "$50k - $75k" },
-  { value: "75000", label: "$75k - $100k" },
-  { value: "100000", label: "$100k - $150k" },
-  { value: "150000", label: "Over $150k" }
-]
-
-const sortOptions = [
-  { value: "relevance", label: "Most Relevant" },
-  { value: "date", label: "Most Recent" },
-  { value: "salary_high", label: "Highest Salary" },
-  { value: "salary_low", label: "Lowest Salary" }
-]
 
 export default function JobsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
   const [jobs, setJobs] = useState<Job[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [filters, setFilters] = useState<SearchFilters>({
-    query: "",
+  const [error, setError] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filters, setFilters] = useState({
     location: "",
-    jobType: "all",
-    workMode: "all",
-    experienceMin: "all",
-    salaryMin: "all",
-    sortBy: "relevance"
+    experience: "",
+    salary: "",
+    employmentType: "",
+    remote: false
   })
   const [showFilters, setShowFilters] = useState(false)
-  const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (status === "loading") return
-    fetchJobs()
-  }, [filters, status])
-
-  useEffect(() => {
-    if (session?.user?.role === UserRole.CANDIDATE) {
-      fetchSavedJobs()
-    }
-  }, [session])
-
-  const fetchJobs = async () => {
-    setIsLoading(true)
-    try {
-      const params = new URLSearchParams()
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== "all") {
-          params.append(key, value)
-        }
-      })
-
-      const response = await fetch(`/api/jobs/search?${params}`)
-      if (response.ok) {
-        const data = await response.json()
-        setJobs(data.jobs)
-      } else {
-        toast.error("Failed to fetch jobs")
-      }
-    } catch (error) {
-      console.error("Error fetching jobs:", error)
-      toast.error("An error occurred")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const fetchSavedJobs = async () => {
-    try {
-      const response = await fetch("/api/candidate/saved-jobs")
-      if (response.ok) {
-        const data = await response.json()
-        setSavedJobs(new Set(data.map((job: any) => job.jobId)))
-      }
-    } catch (error) {
-      console.error("Error fetching saved jobs:", error)
-    }
-  }
-
-  const toggleSaveJob = async (jobId: string) => {
     if (!session) {
       router.push("/auth/signin")
       return
     }
+    if (session.user.role !== "JOBSEEKER") {
+      router.push("/dashboard")
+      return
+    }
+    fetchJobs()
+  }, [session, status, router])
 
+  const fetchJobs = async () => {
     try {
-      const isCurrentlySaved = savedJobs.has(jobId)
-      const method = isCurrentlySaved ? "DELETE" : "POST"
+      setLoading(true)
+      const params = new URLSearchParams({
+        q: searchQuery,
+        ...filters
+      })
       
-      const response = await fetch("/api/candidate/saved-jobs", {
-        method,
+      const response = await fetch(`/api/jobs/search?${params}`)
+      if (response.ok) {
+        const data = await response.json()
+        setJobs(data.jobs || [])
+      } else {
+        setError("Failed to fetch jobs")
+      }
+    } catch (error) {
+      setError("Error fetching jobs")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    fetchJobs()
+  }
+
+  const handleFilterChange = (key: string, value: string | boolean) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      location: "",
+      experience: "",
+      salary: "",
+      employmentType: "",
+      remote: false
+    })
+    setSearchQuery("")
+  }
+
+  const saveJob = async (jobId: string) => {
+    try {
+      const response = await fetch("/api/jobs/save", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -180,78 +126,42 @@ export default function JobsPage() {
       })
 
       if (response.ok) {
-        const newSavedJobs = new Set(savedJobs)
-        if (isCurrentlySaved) {
-          newSavedJobs.delete(jobId)
-          toast.success("Job removed from saved list")
-        } else {
-          newSavedJobs.add(jobId)
-          toast.success("Job saved successfully")
-        }
-        setSavedJobs(newSavedJobs)
-      } else {
-        toast.error("Failed to update saved jobs")
+        alert("Job saved successfully!")
       }
     } catch (error) {
-      console.error("Error toggling saved job:", error)
-      toast.error("An error occurred")
+      alert("Error saving job")
     }
   }
 
-  const handleFilterChange = (key: keyof SearchFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-  }
-
-  const clearFilters = () => {
-    setFilters({
-      query: "",
-      location: "",
-      jobType: "all",
-      workMode: "all",
-      experienceMin: "all",
-      salaryMin: "all",
-      sortBy: "relevance"
-    })
-  }
-
-  const applyToJob = (jobId: string) => {
-    if (!session) {
-      router.push("/auth/signin")
-      return
+  const getEmploymentTypeColor = (type: string) => {
+    switch (type) {
+      case "FULL_TIME": return "bg-blue-100 text-blue-800"
+      case "PART_TIME": return "bg-green-100 text-green-800"
+      case "CONTRACT": return "bg-purple-100 text-purple-800"
+      case "INTERNSHIP": return "bg-yellow-100 text-yellow-800"
+      default: return "bg-gray-100 text-gray-800"
     }
-    router.push(`/jobs/${jobId}/apply`)
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now.getTime() - date.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 1) return "1 day ago"
-    if (diffDays < 7) return `${diffDays} days ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-    return date.toLocaleDateString()
-  }
-
-  const getSalaryRange = (job: Job) => {
-    if (!job.salaryMin && !job.salaryMax) return "Salary not specified"
-    if (job.salaryMin && job.salaryMax) {
-      return `${job.currency} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}`
+  const getSourceBadge = (source: string) => {
+    switch (source) {
+      case "OUR_BOARD": return { label: "Our Board", color: "bg-indigo-100 text-indigo-800" }
+      case "GOOGLE": return { label: "Google", color: "bg-green-100 text-green-800" }
+      case "LINKEDIN": return { label: "LinkedIn", color: "bg-blue-100 text-blue-800" }
+      default: return { label: source, color: "bg-gray-100 text-gray-800" }
     }
-    if (job.salaryMin) return `${job.currency} ${job.salaryMin.toLocaleString()}+`
-    if (job.salaryMax) return `Up to ${job.currency} ${job.salaryMax.toLocaleString()}`
-    return "Salary not specified"
   }
 
-  const getExperienceRange = (job: Job) => {
-    if (!job.experienceMin && !job.experienceMax) return "Experience not specified"
-    if (job.experienceMin && job.experienceMax) {
-      return `${job.experienceMin} - ${job.experienceMax} years`
-    }
-    if (job.experienceMin) return `${job.experienceMin}+ years`
-    if (job.experienceMax) return `Up to ${job.experienceMax} years`
-    return "Experience not specified"
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      </div>
+    )
+  }
+
+  if (!session || session.user.role !== "JOBSEEKER") {
+    return null
   }
 
   return (
@@ -261,266 +171,296 @@ export default function JobsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">JobBoard AI</h1>
+              <h1 className="text-2xl font-bold text-indigo-600">UpJob</h1>
+              <span className="ml-4 text-sm text-gray-500">Job Search</span>
             </div>
             <div className="flex items-center space-x-4">
-              {session?.user?.role === UserRole.CANDIDATE && (
-                <Button variant="outline" onClick={() => router.push("/candidate/dashboard")}>
-                  Dashboard
-                </Button>
-              )}
-              {!session && (
-                <Button onClick={() => router.push("/auth/signin")}>Sign In</Button>
-              )}
+              <Button onClick={() => router.push("/dashboard")}>
+                Back to Dashboard
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Search Section */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <Input
-                  placeholder="Search jobs by title, company, or keywords..."
-                  value={filters.query}
-                  onChange={(e) => handleFilterChange("query", e.target.value)}
-                  className="pl-10 h-12 text-base"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className="h-12"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-              </Button>
-              <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange("sortBy", value)}>
-                <SelectTrigger className="w-40 h-12">
-                  <SortAsc className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Advanced Filters */}
-          {showFilters && (
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Location</Label>
-                <Input
-                  placeholder="City or remote"
-                  value={filters.location}
-                  onChange={(e) => handleFilterChange("location", e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Job Type</Label>
-                <Select value={filters.jobType} onValueChange={(value) => handleFilterChange("jobType", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {jobTypes.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Work Mode</Label>
-                <Select value={filters.workMode} onValueChange={(value) => handleFilterChange("workMode", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workModes.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Experience</Label>
-                <Select value={filters.experienceMin} onValueChange={(value) => handleFilterChange("experienceMin", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {experienceLevels.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">Salary Range</Label>
-                <Select value={filters.salaryMin} onValueChange={(value) => handleFilterChange("salaryMin", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {salaryRanges.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-end">
-                <Button variant="outline" onClick={clearFilters} className="w-full">
-                  Clear Filters
-                </Button>
-              </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800">{error}</p>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Results Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Job Search Results</h2>
-            <p className="text-gray-600 mt-1">
-              {isLoading ? "Searching..." : `Found ${jobs.length} jobs`}
-            </p>
-          </div>
-        </div>
+          {/* Search Section */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Search className="h-5 w-5 mr-2" />
+                Find Your Dream Job
+              </CardTitle>
+              <CardDescription>
+                Search through thousands of job opportunities
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSearch} className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search jobs by title, company, or keywords..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="submit">
+                    <Search className="h-4 w-4 mr-2" />
+                    Search
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowFilters(!showFilters)}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filters
+                  </Button>
+                </div>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : jobs.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h3>
-              <p className="text-gray-600 mb-4">Try adjusting your search criteria or filters</p>
-              <Button onClick={clearFilters}>Clear All Filters</Button>
+                {showFilters && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        placeholder="City or Remote"
+                        value={filters.location}
+                        onChange={(e) => handleFilterChange("location", e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="experience">Experience (years)</Label>
+                      <Select value={filters.experience} onValueChange={(value) => handleFilterChange("experience", value)}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select experience" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Any</SelectItem>
+                          <SelectItem value="0-1">0-1 years</SelectItem>
+                          <SelectItem value="1-3">1-3 years</SelectItem>
+                          <SelectItem value="3-5">3-5 years</SelectItem>
+                          <SelectItem value="5+">5+ years</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="salary">Salary Range</Label>
+                      <Select value={filters.salary} onValueChange={(value) => handleFilterChange("salary", value)}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select salary" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Any</SelectItem>
+                          <SelectItem value="0-50000">$0 - $50,000</SelectItem>
+                          <SelectItem value="50000-80000">$50,000 - $80,000</SelectItem>
+                          <SelectItem value="80000-120000">$80,000 - $120,000</SelectItem>
+                          <SelectItem value="120000+">$120,000+</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="employmentType">Employment Type</Label>
+                      <Select value={filters.employmentType} onValueChange={(value) => handleFilterChange("employmentType", value)}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Any</SelectItem>
+                          <SelectItem value="FULL_TIME">Full Time</SelectItem>
+                          <SelectItem value="PART_TIME">Part Time</SelectItem>
+                          <SelectItem value="CONTRACT">Contract</SelectItem>
+                          <SelectItem value="INTERNSHIP">Internship</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center space-x-2 md:col-span-4">
+                      <Checkbox
+                        id="remote"
+                        checked={filters.remote}
+                        onCheckedChange={(checked) => handleFilterChange("remote", checked as boolean)}
+                      />
+                      <Label htmlFor="remote">Remote only</Label>
+                      <Button variant="outline" onClick={clearFilters} className="ml-auto">
+                        Clear Filters
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </form>
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-4">
-            {jobs.map((job) => (
-              <Card key={job.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="text-xl font-semibold text-gray-900 mb-1">
-                            {job.title}
-                          </h3>
-                          <p className="text-lg text-gray-700 mb-2">{job.companyName}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleSaveJob(job.id)}
-                          className="ml-4"
-                        >
-                          <Bookmark 
-                            className={`h-4 w-4 ${
-                              savedJobs.has(job.id) ? "fill-blue-600 text-blue-600" : ""
-                            }`} 
-                          />
-                        </Button>
-                      </div>
-                      
-                      {job.shortDescription && (
-                        <p className="text-gray-600 mb-4">{job.shortDescription}</p>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
-                        <div className="flex items-center">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          {job.locations.length > 0 ? job.locations.join(", ") : "Location not specified"}
-                        </div>
-                        <div className="flex items-center">
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          {getSalaryRange(job)}
-                        </div>
-                        <div className="flex items-center">
-                          <Briefcase className="h-4 w-4 mr-1" />
-                          {getExperienceRange(job)}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {formatDate(job.createdAt)}
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        <Badge variant="outline">{job.employmentType}</Badge>
-                        <Badge variant="outline">{job.workMode}</Badge>
-                        {job.skills.slice(0, 5).map((skill) => (
-                          <Badge key={skill} variant="secondary">{skill}</Badge>
-                        ))}
-                        {job.skills.length > 5 && (
-                          <Badge variant="secondary">+{job.skills.length - 5} more</Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-500">
-                      {job.applicationCount !== undefined && (
-                        <span>{job.applicationCount} applicants</span>
-                      )}
-                      {job.deadline && (
-                        <span className="ml-4">
-                          Deadline: {new Date(job.deadline).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="space-x-2">
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        onClick={() => applyToJob(job.id)}
-                        disabled={job.status !== "ACTIVE"}
-                      >
-                        {job.status === "ACTIVE" ? "Apply Now" : "Not Accepting Applications"}
-                      </Button>
-                    </div>
-                  </div>
+
+          {/* Results Section */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">
+                Search Results
+              </h3>
+              <p className="text-sm text-gray-600">
+                {jobs.length} jobs found
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm">
+                <Heart className="h-4 w-4 mr-2" />
+                Saved Jobs
+              </Button>
+            </div>
+          </div>
+
+          {/* Job Listings */}
+          <div className="space-y-6">
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading jobs...</p>
+              </div>
+            ) : jobs.length === 0 ? (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <Briefcase className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h3>
+                  <p className="text-gray-600 mb-4">
+                    Try adjusting your search criteria or check back later for new opportunities.
+                  </p>
+                  <Button onClick={clearFilters}>
+                    Clear Filters
+                  </Button>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              jobs.map((job) => {
+                const sourceBadge = getSourceBadge(job.source)
+                return (
+                  <Card key={job.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl">{job.title}</CardTitle>
+                          <CardDescription className="flex items-center mt-1">
+                            <Briefcase className="h-3 w-3 mr-1" />
+                            {job.company}
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge className={sourceBadge.color}>
+                            {sourceBadge.label}
+                          </Badge>
+                          <Badge className={getEmploymentTypeColor(job.employmentType)}>
+                            {job.employmentType.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                        {job.description}
+                      </p>
+                      
+                      {/* Job Details */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+                        <div className="flex items-center">
+                          <MapPin className="h-3 w-3 mr-1 text-gray-500" />
+                          <span>
+                            {job.remote ? "Remote" : job.location.join(", ")}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <DollarSign className="h-3 w-3 mr-1 text-gray-500" />
+                          <span>
+                            {job.minSalary && job.maxSalary 
+                              ? `${job.currency} ${job.minSalary.toLocaleString()} - ${job.maxSalary.toLocaleString()}`
+                              : "Competitive"
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1 text-gray-500" />
+                          <span>
+                            {job.minExperience && job.maxExperience
+                              ? `${job.minExperience}-${job.maxExperience} years`
+                              : "Experience required"
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="h-3 w-3 mr-1 text-gray-500" />
+                          <span>
+                            {new Date(job.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Skills */}
+                      <div className="mb-4">
+                        <div className="flex flex-wrap gap-1">
+                          {job.skills.slice(0, 6).map((skill, index) => (
+                            <Badge key={index} variant="outline" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                          {job.skills.length > 6 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{job.skills.length - 6} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex justify-between items-center">
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => saveJob(job.id)}
+                          >
+                            <Heart className="h-4 w-4 mr-1" />
+                            Save
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Share2 className="h-4 w-4 mr-1" />
+                            Share
+                          </Button>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(job.applyUrl, '_blank')}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            View Details
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => window.open(job.applyUrl, '_blank')}
+                          >
+                            Apply Now
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

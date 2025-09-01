@@ -1,6 +1,0 @@
-export enum UserRole {
-  SUPER_ADMIN = "SUPER_ADMIN",
-  ADMIN = "ADMIN",
-  RECRUITER = "RECRUITER",
-  CANDIDATE = "CANDIDATE",
-}

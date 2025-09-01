@@ -2,47 +2,56 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { UserRole } from "@/types/enums"
+import { UserRole } from "@prisma/client"
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== UserRole.RECRUITER) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    if (session.user.role !== UserRole.RECRUITER) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // Get recruiter profile
     const recruiter = await db.recruiter.findUnique({
-      where: { userId: session.user.id }
+      where: {
+        userId: session.user.id
+      }
     })
 
     if (!recruiter) {
-      return NextResponse.json({ message: "Recruiter profile not found" }, { status: 404 })
+      return NextResponse.json({ error: "Recruiter profile not found" }, { status: 404 })
     }
 
+    // Get recruiter's projects
     const projects = await db.project.findMany({
-      where: { recruiterId: recruiter.id },
+      where: {
+        recruiterId: recruiter.id
+      },
       include: {
         _count: {
           select: {
+            applications: true,
             projectCandidates: true
           }
         }
       },
       orderBy: {
-        createdAt: "desc"
+        createdAt: 'desc'
       }
     })
 
-    const projectsWithCounts = projects.map(project => ({
-      ...project,
-      candidateCount: project._count.projectCandidates
-    }))
-
-    return NextResponse.json(projectsWithCounts)
+    return NextResponse.json(projects)
   } catch (error) {
     console.error("Error fetching recruiter projects:", error)
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
 }
 
@@ -50,39 +59,79 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
-    if (!session || session.user.role !== UserRole.RECRUITER) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    if (session.user.role !== UserRole.RECRUITER) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const {
+      title,
+      company,
+      description,
+      minExperience,
+      maxExperience,
+      minSalary,
+      maxSalary,
+      currency,
+      location,
+      remote,
+      employmentType,
+      noticePeriod,
+      skills,
+      criteria,
+      customQuestions
+    } = body
+
+    // Get recruiter profile
     const recruiter = await db.recruiter.findUnique({
-      where: { userId: session.user.id }
-    })
-
-    if (!recruiter) {
-      return NextResponse.json({ message: "Recruiter profile not found" }, { status: 404 })
-    }
-
-    const data = await request.json()
-
-    const project = await db.project.create({
-      data: {
-        workspaceId: recruiter.workspaceId || "",
-        recruiterId: recruiter.id,
-        title: data.title,
-        clientName: data.clientName,
-        spocName: data.spocName,
-        spocEmail: data.spocEmail,
-        spocPhone: data.spocPhone,
-        description: data.description,
-        status: data.status || "WIP",
-        remarks: data.remarks,
-        criteria: data.criteria ? JSON.stringify(data.criteria) : null,
+      where: {
+        userId: session.user.id
       }
     })
 
-    return NextResponse.json(project, { status: 201 })
+    if (!recruiter) {
+      return NextResponse.json({ error: "Recruiter profile not found" }, { status: 404 })
+    }
+
+    // Create new project
+    const project = await db.project.create({
+      data: {
+        title,
+        company,
+        description,
+        minExperience,
+        maxExperience,
+        minSalary,
+        maxSalary,
+        currency,
+        location: JSON.stringify(location || []),
+        remote,
+        employmentType,
+        noticePeriod,
+        skills: JSON.stringify(skills || []),
+        criteria: JSON.stringify(criteria || {}),
+        customQuestions: JSON.stringify(customQuestions || []),
+        recruiterId: recruiter.id,
+        status: 'ACTIVE'
+      }
+    })
+
+    return NextResponse.json({
+      id: project.id,
+      title: project.title,
+      company: project.company,
+      status: project.status,
+      createdAt: project.createdAt
+    })
   } catch (error) {
     console.error("Error creating project:", error)
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
 }

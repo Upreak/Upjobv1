@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/components/providers/auth-provider";
+import { Providers } from "@/components/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,21 +14,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Job Board with AI Co-Pilot",
-  description: "AI-powered job board platform with intelligent candidate matching and recruiter co-pilot",
-  keywords: ["Job Board", "AI Co-Pilot", "Recruitment", "Jobs", "Candidates", "AI"],
-  authors: [{ name: "Job Board Team" }],
+  title: "UpJob - AI-Powered Job Board Platform",
+  description: "Modern job board platform with AI co-pilot for recruiters and candidates",
+  keywords: ["job board", "AI recruitment", "careers", "jobs", "AI co-pilot"],
+  authors: [{ name: "UpJob Team" }],
   openGraph: {
-    title: "Job Board with AI Co-Pilot",
-    description: "AI-powered job board platform with intelligent candidate matching",
-    url: "https://jobboard.example.com",
-    siteName: "Job Board AI",
+    title: "UpJob - AI-Powered Job Board",
+    description: "AI-powered recruitment platform with modern features",
+    url: "https://upjob.com",
+    siteName: "UpJob",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Job Board with AI Co-Pilot",
-    description: "AI-powered job board platform with intelligent candidate matching",
+    title: "UpJob - AI-Powered Job Board",
+    description: "AI-powered recruitment platform with modern features",
   },
 };
 
@@ -43,10 +42,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <AuthProvider>
+        <Providers>
           {children}
-          <Toaster />
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

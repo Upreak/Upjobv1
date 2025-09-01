@@ -10,67 +10,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User and Authentication Models
-model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  emailVerified Boolean  @default(false)
-  name          String?
-  avatar        String?
-  password      String?
-  role          UserRole @default(CANDIDATE)
-  status        UserStatus @default(ACTIVE)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
-  workspaceId   String?
-  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
-  
-  candidate     Candidate?
-  recruiter     Recruiter?
-  admin         Admin?
-  
-  accounts      Account[]
-  sessions      Session[]
-  chatSessions  ChatSession[]
-  
-  @@map("users")
-}
-
+// User Management
 enum UserRole {
   SUPER_ADMIN
   ADMIN
   RECRUITER
-  CANDIDATE
+  JOBSEEKER
 }
 
 enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
-  PENDING
 }
 
-// Workspace/Tenant Model
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  name          String?
+  phone         String?
+  role          UserRole
+  status        UserStatus @default(ACTIVE)
+  avatar        String?
+  workspaceId   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
+  candidate     Candidate?
+  recruiter     Recruiter?
+  accounts      Account[]
+  sessions      Session[]
+  applications  Application[]
+  chatMessages  ChatMessage[]
+  actionQueue   ActionQueue[]
+
+  @@map("users")
+}
+
+// Workspace Management
 model Workspace {
   id          String   @id @default(cuid())
   name        String
-  domain      String?
+  description String?
   settings    Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relations
-  users       User[]
-  jobs        Job[]
-  projects    Project[]
-  analytics   Analytics[]
-  
+  users User[]
+
   @@map("workspaces")
 }
 
-// NextAuth.js Models
+// Authentication (NextAuth.js)
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -110,263 +105,106 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-// Candidate Profile Model
+// Candidate Profile
 model Candidate {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Personal Info
-  fullName            String?
-  phone               String?
-  address             String?
-  dateOfBirth         DateTime?
-  gender              Gender?
-  maritalStatus       String?
-  languages           String?  // JSON array
-  
-  // Professional Info
-  totalExperience     Float?   // in years
-  currentRole         String?
-  expectedRole        String?
-  currentCTC          Float?   // in LPA
-  expectedCTC         Float?   // in LPA
-  noticePeriod        Float?   // in days
-  certifications      String?  // JSON array
-  education           String?  // JSON array
-  workHistory         String?  // JSON array of work experiences
-  
-  // Preferences
-  preferredIndustries String?  // JSON array
-  jobType             JobType?
-  workType            WorkType? // Gov/Pvt/Gov&Pvt
-  readyToRelocate     Boolean  @default(false)
-  lookingAbroad       Boolean  @default(false)
-  sectorType          SectorType?
-  reservationCategory String?
-  
-  // Additional Info
-  hobbies             String?  // JSON array
-  bio                 String?
-  hasCurrentOffers    Boolean  @default(false)
-  bestTimeToContact   String?
-  preferredContact    ContactMode?
-  
-  // Resume
-  resumePath          String?
-  resumeParsedData    String?  // JSON
-  profileCompleteness Int      @default(0)
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  resumeUrl       String?
+  parsedResume    Json?
+  skills          Json?    // Array of skills as JSON
+  experience      Json?    // Array of experience objects
+  education       Json?    // Array of education objects
+  preferences     Json?    // Job preferences
+  currentCtc      Float?
+  expectedCtc     Float?
+  noticePeriod    Int?     // in days
+  location        String?
+  relocate        Boolean  @default(false)
+  summary         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   // Relations
-  applications        Application[]
-  savedJobs           SavedJob[]
-  chatSessions        ChatSession[]
-  projectCandidates   ProjectCandidate[]
-  actionQueue         ActionQueue[]
-  skills              SkillOnCandidate[]
-  locations           LocationOnCandidate[]
-  
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications    Application[]
+  savedJobs       SavedJob[]
+  chatMessages    ChatMessage[]
+  projectCandidates ProjectCandidate[]
+  actionQueue     ActionQueue[]
+
   @@map("candidates")
 }
 
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-  PREFER_NOT_TO_SAY
-}
-
-enum JobType {
-  FULL_TIME
-  PART_TIME
-  CONTRACT
-  REMOTE
-  HYBRID
-  INTERNSHIP
-}
-
-enum WorkType {
-  GOVERNMENT
-  PRIVATE
-  GOV_PVT
-}
-
-enum SectorType {
-  GOVERNMENT
-  PRIVATE
-  BOTH
-}
-
-enum ContactMode {
-  CALL
-  WHATSAPP
-  EMAIL
-}
-
-// Recruiter Profile Model
+// Recruiter Profile
 model Recruiter {
-  id            String   @id @default(cuid())
-  userId        String   @unique
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  companyName   String?
-  companyEmail  String?
-  department    String?
-  designation   String?
-  location      String?
-  bio           String?
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  company     String?
+  department  String?
+  designation String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relations
-  jobs          Job[]
-  projects      Project[]
-  actionQueue   ActionQueue[]
-  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects    Project[]
+  chatMessages ChatMessage[]
+
   @@map("recruiters")
 }
 
-// Admin Profile Model
-model Admin {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  permissions String? // JSON array of permissions
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@map("admins")
-}
-
-// Job Model
-model Job {
-  id                  String      @id @default(cuid())
-  workspaceId         String
-  workspace           Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  recruiterId         String?
-  recruiter           Recruiter?  @relation(fields: [recruiterId], references: [id])
-  
-  title               String
-  companyName         String
-  description         String?
-  shortDescription    String?
-  
-  // Job Details
-  experienceMin       Float?
-  experienceMax       Float?
-  salaryMin           Float?
-  salaryMax           Float?
-  currency            String      @default("INR")
-  employmentType      JobType?
-  noticePeriod        String?
-  workMode            WorkMode?   // Remote/Onsite/Hybrid
-  deadline            DateTime?
-  
-  // Status and Metadata
-  status              JobStatus   @default(DRAFT)
-  source              JobSource   @default(INTERNAL)
-  externalJobId       String?     // For external jobs
-  applyUrl            String?     // External apply URL
-  canonicalUrl        String?     // Original source URL
-  
-  // Structured Data for SEO
-  structuredData      String?     // JSON-LD
-  
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  
-  // Relations
-  customQuestions     CustomQuestion[]
-  applications        Application[]
-  projects            Project[]
-  savedJobs           SavedJob[]
-  skills              SkillOnJob[]
-  locations           LocationOnJob[]
-  
-  @@map("jobs")
-}
-
-enum JobStatus {
+// Job/Project Management
+enum ProjectStatus {
   DRAFT
   ACTIVE
-  EXPIRED
+  HOLD
   CLOSED
-  ON_HOLD
+  WIN
+  PARTIAL_WIN
 }
 
-enum JobSource {
-  INTERNAL
-  GOOGLE
-  LINKEDIN
-  COMPANY_SITE
-  AGGREGATOR
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  FREELANCE
 }
 
-enum WorkMode {
-  REMOTE
-  ONSITE
-  HYBRID
+model Project {
+  id              String         @id @default(cuid())
+  title           String
+  company         String
+  description     String
+  skills          Json?          // Array of skills as JSON
+  minExperience   Int            // in years
+  maxExperience   Int            // in years
+  minSalary       Float?
+  maxSalary       Float?
+  currency        String?        @default("USD")
+  location        Json?          // Array of locations as JSON
+  remote          Boolean        @default(false)
+  employmentType  EmploymentType @default(FULL_TIME)
+  noticePeriod    Int?           // in days
+  status          ProjectStatus  @default(DRAFT)
+  criteria        Json?          // Star system criteria
+  customQuestions Json?          // Array of custom questions
+  recruiterId     String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  recruiter       Recruiter           @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  applications    Application[]
+  projectCandidates ProjectCandidate[]
+  actionQueue     ActionQueue[]
+  savedJobs       SavedJob[]
+  chatMessages    ChatMessage[]
+
+  @@map("projects")
 }
 
-// Custom Questions for Jobs
-model CustomQuestion {
-  id          String   @id @default(cuid())
-  jobId       String
-  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  
-  question    String
-  type        QuestionType
-  options     String?  // JSON array for dropdown/multiple choice
-  isMandatory Boolean  @default(false)
-  order       Int      @default(0)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@map("custom_questions")
-}
-
-enum QuestionType {
-  TEXT
-  TEXTAREA
-  DROPDOWN
-  MULTIPLE_CHOICE
-  CHECKBOX
-  YES_NO
-  NUMBER
-  DATE
-}
-
-// Application Model
-model Application {
-  id            String           @id @default(cuid())
-  jobId         String
-  job           Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  candidateId   String
-  candidate     Candidate        @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  
-  // Application Data
-  answers       String?          // JSON of custom question answers
-  coverLetter   String?
-  resumePath    String?
-  status        ApplicationStatus @default(APPLIED)
-  
-  // Candidate Info at time of application
-  candidateInfo String?          // JSON snapshot of candidate info
-  
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  
-  @@unique([jobId, candidateId])
-  @@map("applications")
-}
-
+// Job Applications
 enum ApplicationStatus {
   APPLIED
   VIEWED
@@ -378,352 +216,200 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
-// Saved Jobs Model
-model SavedJob {
-  id          String   @id @default(cuid())
-  jobId       String
-  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+model Application {
+  id          String           @id @default(cuid())
+  projectId   String
   candidateId String
-  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  
-  @@unique([jobId, candidateId])
-  @@map("saved_jobs")
-}
+  userId      String?          // For tracking who created the application
+  status      ApplicationStatus @default(APPLIED)
+  answers     Json?            // Answers to custom questions
+  remarks     String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-// Project Model (for Recruiter's client projects)
-model Project {
-  id            String       @id @default(cuid())
-  workspaceId   String
-  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  recruiterId   String
-  recruiter     Recruiter    @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
-  
-  title         String
-  clientName    String
-  spocName      String?      // Single Point of Contact
-  spocEmail     String?
-  spocPhone     String?
-  
-  // Project Details
-  description   String?
-  status        ProjectStatus @default(WIP)
-  remarks       String?
-  
-  // Non-negotiable criteria (Star System)
-  criteria      String?      // JSON array of criteria with star status
-  
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  
   // Relations
-  jobs          Job[]
-  projectCandidates ProjectCandidate[]
-  actionQueue   ActionQueue[]
-  
-  @@map("projects")
-}
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id])
 
-enum ProjectStatus {
-  WIP
-  HOLD
-  CLOSED
-  WIN
-  PARTIAL_WIN
-  LOST
-}
-
-// Project-Candidate Association
-model ProjectCandidate {
-  id            String              @id @default(cuid())
-  projectId     String
-  project       Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  candidateId   String
-  candidate     Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  
-  // Matching and Status
-  matchScore    Float?
-  status        CandidateStatus     @default(NEW)
-  followUpDate  DateTime?
-  remarks       String?
-  
-  // Recruiter actions
-  isShortlisted Boolean             @default(false)
-  isSubmitted   Boolean             @default(false)
-  submittedAt   DateTime?
-  
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  
   @@unique([projectId, candidateId])
-  @@map("project_candidates")
+  @@map("applications")
 }
 
+// Project-Candidate Relationship (for shortlisting)
 enum CandidateStatus {
   NEW
   CONTACTED
   REPLIED
-  AWAITING_REPLY
-  LIVE_CHAT
-  INTERVENTION_NEEDED
-  COMPLETED
-  DECLINED
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  OFFERED
+  JOINED
+  NO_SHOW
+  UNDER_FOLLOW_UP
+  REJECTED
 }
 
-// AI Provider Configuration
-model AIProvider {
-  id            String           @id @default(cuid())
-  name          String           @unique
-  type          ProviderType
-  endpoint      String
-  apiKey        String?
-  model         String?
-  isActive      Boolean          @default(true)
-  
-  // Configuration
-  config        String?          // JSON configuration
-  weight        Float            @default(1.0)
-  maxTokens     Int?
-  maxRequests   Int?
-  maxCost       Float?
-  
-  // Rate limiting
-  requestsPerMinute Int?
-  tokensPerMinute   Int?
-  
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  
+model ProjectCandidate {
+  id               String          @id @default(cuid())
+  projectId        String
+  candidateId      String
+  status           CandidateStatus @default(NEW)
+  matchScore       Float?
+  aiNotes          String?
+  recruiterNotes   String?
+  nextFollowUp     DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
   // Relations
-  providerMetrics ProviderMetric[]
-  
-  @@map("ai_providers")
+  project          Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  candidate        Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, candidateId])
+  @@map("project_candidates")
 }
 
-enum ProviderType {
-  LLM
-  SERP
-  PARSING
-  EMBEDDING
-}
+// Saved Jobs
+model SavedJob {
+  id          String   @id @default(cuid())
+  candidateId String
+  projectId   String
+  createdAt   DateTime @default(now())
 
-// Provider Metrics
-model ProviderMetric {
-  id            String   @id @default(cuid())
-  providerId    String
-  provider      AIProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  
-  // Usage Metrics
-  requestCount  Int      @default(0)
-  tokenCount    Int      @default(0)
-  successCount  Int      @default(0)
-  failureCount  Int      @default(0)
-  
-  // Performance Metrics
-  avgLatency    Float?
-  totalCost     Float    @default(0)
-  
-  // Time period
-  date          DateTime @default(now())
-  
-  @@unique([providerId, date])
-  @@map("provider_metrics")
-}
-
-// Chat System Models
-model ChatSession {
-  id            String       @id @default(cuid())
-  candidateId   String?
-  candidate     Candidate?   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  userId        String?
-  user          User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  sessionType   ChatSessionType
-  platform      ChatPlatform
-  status        ChatStatus   @default(ACTIVE)
-  
-  // Context
-  context       String?      // JSON context data
-  metadata      String?      // JSON metadata
-  
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  
   // Relations
-  messages      ChatMessage[]
-  
-  @@map("chat_sessions")
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateId, projectId])
+  @@map("saved_jobs")
 }
 
-enum ChatSessionType {
-  CANDIDATE_REGISTRATION
-  JOB_SEARCH
-  APPLICATION
-  HR_POSTING
-  CANDIDATE_SEARCH
-  GENERAL
-}
-
-enum ChatPlatform {
-  WEB
-  TELEGRAM
-  WHATSAPP
+// Chat System
+enum ChatRole {
+  CANDIDATE
+  RECRUITER
+  BOT
 }
 
 enum ChatStatus {
   ACTIVE
   COMPLETED
-  ABANDONED
-  ERROR
+  INTERVENTION_NEEDED
+  DECLINED
 }
 
 model ChatMessage {
-  id            String       @id @default(cuid())
-  sessionId     String
-  session       ChatSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  
-  messageType   MessageType
-  content       String
-  metadata      String?      // JSON metadata
-  
-  createdAt     DateTime     @default(now())
-  
+  id          String     @id @default(cuid())
+  projectId   String?
+  candidateId String
+  recruiterId String?
+  userId      String?    // For tracking general user messages
+  role        ChatRole
+  message     String
+  status      ChatStatus?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+
+  // Relations
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  candidate   Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  recruiter   Recruiter?  @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [userId], references: [id])
+
   @@map("chat_messages")
 }
 
-enum MessageType {
-  USER
-  BOT
-  SYSTEM
-  INTERVENTION
-}
-
-// Action Queue for Recruiter Workspace
-model ActionQueue {
-  id            String           @id @default(cuid())
-  recruiterId   String
-  recruiter     Recruiter        @relation(fields: [recruiterId], references: [id], onDelete: Cascade)
-  projectId     String?
-  project       Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  candidateId   String?
-  candidate     Candidate?       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  
-  type          ActionType
-  title         String
-  description   String?
-  metadata      String?          // JSON metadata
-  
-  priority      ActionPriority   @default(MEDIUM)
-  status        ActionStatus     @default(PENDING)
-  dueDate       DateTime?
-  
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  completedAt   DateTime?
-  
-  @@map("action_queue")
-}
-
+// Action Queue for Manual Intervention
 enum ActionType {
   NEW_MATCHES
   CHAT_FOLLOW_UP
   NO_RESPONSE
   PARSE_FAILURE
   CHAT_INTERVENTION
-  MANUAL_REVIEW
-  DUPLICATE_CHECK
 }
 
-enum ActionPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
+model ActionQueue {
+  id          String     @id @default(cuid())
+  projectId   String?
+  candidateId String?
+  type        ActionType
+  title       String
+  description String?
+  status      String     @default("PENDING")
+  assignedTo  String     // User ID
+  dueDate     DateTime?
+  completedAt DateTime?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-enum ActionStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  SKIPPED
-}
-
-// Analytics and Audit Logs
-model Analytics {
-  id            String   @id @default(cuid())
-  workspaceId   String?
-  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
-  
-  eventType     String
-  eventData     String?  // JSON event data
-  userId        String?
-  userRole      UserRole?
-  metadata      String?  // JSON metadata
-  
-  ipAddress     String?
-  userAgent     String?
-  
-  createdAt     DateTime @default(now())
-  
-  @@map("analytics")
-}
-
-// Skill and Location Models
-model Skill {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  
   // Relations
-  jobs        SkillOnJob[]
-  candidates  SkillOnCandidate[]
-  
-  @@map("skills")
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  candidate   Candidate? @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [assignedTo], references: [id], onDelete: Cascade)
+
+  @@map("action_queue")
 }
 
-model Location {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  
+// Provider Management for AI Services
+enum ProviderType {
+  LLM
+  SERP
+  PARSER
+  ENRICHMENT
+}
+
+model Provider {
+  id          String       @id @default(cuid())
+  name        String
+  type        ProviderType
+  endpoint    String
+  auth        Json?        // Authentication details
+  model       String?
+  weight      Int          @default(100)
+  dailyLimit  Int?
+  costPerCall Float?
+  costPerToken Float?
+  isActive    Boolean      @default(true)
+  settings    Json?        // Additional settings
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
   // Relations
-  jobs        LocationOnJob[]
-  candidates  LocationOnCandidate[]
-  
-  @@map("locations")
+  metrics     ProviderMetric[]
+
+  @@map("providers")
 }
 
-model SkillOnJob {
-  jobId   String
-  job     Job    @relation(fields: [jobId], references: [id])
-  skillId String
-  skill   Skill  @relation(fields: [skillId], references: [id])
-  
-  @@id([jobId, skillId])
+model ProviderMetric {
+  id          String   @id @default(cuid())
+  providerId  String
+  callCount   Int      @default(0)
+  tokenCount  Int      @default(0)
+  successRate Float    @default(0)
+  avgLatency  Int      @default(0) // in ms
+  cost        Float    @default(0)
+  date        DateTime @default(now())
+
+  // Relations
+  provider    Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, date])
+  @@map("provider_metrics")
 }
 
-model LocationOnJob {
-  jobId      String
-  job        Job      @relation(fields: [jobId], references: [id])
-  locationId String
-  location   Location @relation(fields: [locationId], references: [id])
-  
-  @@id([jobId, locationId])
-}
+// Search and Analytics
+model SearchLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  query       String
+  filters     Json?
+  results     Int?
+  sources     Json?    // Sources searched
+  providers   Json?    // Providers used
+  latency     Int?     // in ms
+  createdAt   DateTime @default(now())
 
-model SkillOnCandidate {
-  candidateId String
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
-  skillId     String
-  skill       Skill     @relation(fields: [skillId], references: [id])
-  
-  @@id([candidateId, skillId])
-}
-
-model LocationOnCandidate {
-  candidateId String
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
-  locationId  String
-  location    Location  @relation(fields: [locationId], references: [id])
-  
-  @@id([candidateId, locationId])
+  @@map("search_logs")
 }
