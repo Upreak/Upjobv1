@@ -20,6 +20,16 @@ export async function GET(request: NextRequest) {
             email: true,
             name: true,
           }
+        },
+        skills: {
+          include: {
+            skill: true
+          }
+        },
+        locations: {
+          include: {
+            location: true
+          }
         }
       }
     })
@@ -32,11 +42,11 @@ export async function GET(request: NextRequest) {
     const profile = {
       ...candidate,
       languages: candidate.languages ? JSON.parse(candidate.languages) : [],
-      skills: candidate.skills ? JSON.parse(candidate.skills) : [],
+      skills: candidate.skills?.map(s => s.skill.name) || [],
       certifications: candidate.certifications ? JSON.parse(candidate.certifications) : [],
       education: candidate.education ? JSON.parse(candidate.education) : [],
       workHistory: candidate.workHistory ? JSON.parse(candidate.workHistory) : [],
-      preferredLocations: candidate.preferredLocations ? JSON.parse(candidate.preferredLocations) : [],
+      preferredLocations: candidate.locations?.map(l => l.location.name) || [],
       preferredIndustries: candidate.preferredIndustries ? JSON.parse(candidate.preferredIndustries) : [],
       hobbies: candidate.hobbies ? JSON.parse(candidate.hobbies) : [],
     }
