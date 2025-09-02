@@ -6,7 +6,7 @@ import { db } from "./db"
 import bcrypt from "bcryptjs"
 import { UserRole } from "@prisma/client"
 
-const providers = [
+let providers = [
   CredentialsProvider({
     name: "credentials",
     credentials: {

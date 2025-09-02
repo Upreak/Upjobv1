@@ -248,49 +248,29 @@ export default function CreateProject() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-indigo-600">UpJob</h1>
-              <span className="ml-4 text-sm text-gray-500">Create Job Posting</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" onClick={() => router.push("/dashboard/recruiter")}>
-                Back to Workspace
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      {success && (
+        <Alert className="mb-6 border-green-200 bg-green-50 text-green-800">
+          <AlertDescription>{success}</AlertDescription>
+        </Alert>
+      )}
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          {success && (
-            <Alert className="mb-6 border-green-200 bg-green-50 text-green-800">
-              <AlertDescription>{success}</AlertDescription>
-            </Alert>
-          )}
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          Create New Job Posting
+        </h2>
+        <p className="text-gray-600">
+          Post a new job opening to attract qualified candidates.
+        </p>
+      </div>
 
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Create New Job Posting
-            </h2>
-            <p className="text-gray-600">
-              Post a new job opening to attract qualified candidates.
-            </p>
-          </div>
-
-          <Tabs defaultValue="basic" className="space-y-6">
+      <Tabs defaultValue="basic" className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="requirements">Requirements</TabsTrigger>
